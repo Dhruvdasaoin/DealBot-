@@ -108,10 +108,10 @@ def get_all_deals():
     return all_deals
 
 def get_mock_deals():
-    """Returns 100% REAL working product URLs across all 7 categories"""
+    """Returns direct links to specific live discount pages across all categories"""
     return [
         {
-            'title': 'boAt Airdopes 141 Bluetooth TWS Earbuds',
+            'title': 'boAt Airdopes 141 Bluetooth TWS Earbuds (71% OFF)',
             'url': 'https://www.amazon.in/dp/B09N3ZLB3T',
             'original_price': 4490.0,
             'discount_price': 1299.0,
@@ -120,16 +120,16 @@ def get_mock_deals():
             'source': 'Amazon'
         },
         {
-            'title': 'Fastrack Casual Analog Black Dial Men Watch',
-            'url': 'https://www.amazon.in/dp/B00ED1V7P8',
-            'original_price': 2595.0,
-            'discount_price': 1595.0,
-            'discount_percentage': 38.5,
+            'title': 'Amazon Fashion Top Deals & Apparel Discounts (Up to 70% OFF)',
+            'url': 'https://www.amazon.in/b?node=1984443031',
+            'original_price': 2999.0,
+            'discount_price': 899.0,
+            'discount_percentage': 70.0,
             'category': 'Fashion',
             'source': 'Amazon'
         },
         {
-            'title': 'Pigeon by Stovekraft Amaze Plus Electric Kettle (1.5 Litre)',
+            'title': 'Pigeon Electric Kettle 1.5L (49% OFF Deal)',
             'url': 'https://www.amazon.in/dp/B07WMS75KY',
             'original_price': 1245.0,
             'discount_price': 629.0,
@@ -138,7 +138,7 @@ def get_mock_deals():
             'source': 'Amazon'
         },
         {
-            'title': 'Atomic Habits Paperback by James Clear',
+            'title': 'Atomic Habits Bestseller Book (40% OFF Deal)',
             'url': 'https://www.amazon.in/dp/1847941831',
             'original_price': 799.0,
             'discount_price': 480.0,
@@ -147,16 +147,25 @@ def get_mock_deals():
             'source': 'Amazon'
         },
         {
-            'title': 'Skyscanner Live Flights & Hotel Offers',
-            'url': 'https://www.skyscanner.co.in',
-            'original_price': 5000.0,
-            'discount_price': 3250.0,
+            'title': 'Skyscanner Live Flights Offers & Discount Search',
+            'url': 'https://www.skyscanner.co.in/flights',
+            'original_price': 6500.0,
+            'discount_price': 4225.0,
             'discount_percentage': 35.0,
             'category': 'Travel',
             'source': 'Skyscanner'
         },
         {
-            'title': 'Crypto Alert: Solana (SOL) 🚀 Price Tracker',
+            'title': 'Skyscanner Live Hotel Deals & Discounted Stay Booking',
+            'url': 'https://www.skyscanner.co.in/hotels',
+            'original_price': 4500.0,
+            'discount_price': 2925.0,
+            'discount_percentage': 35.0,
+            'category': 'Travel',
+            'source': 'Skyscanner'
+        },
+        {
+            'title': 'Crypto Live Price Alert: Solana (SOL) Market Movers',
             'url': 'https://www.coingecko.com/en/coins/solana',
             'original_price': 160.0,
             'discount_price': 135.0,
@@ -165,17 +174,17 @@ def get_mock_deals():
             'source': 'CoinGecko'
         },
         {
-            'title': 'Swiggy Gourmet Flat Discount Offers',
-            'url': 'https://www.grabon.in/swiggy-coupons/',
+            'title': 'Swiggy Gourmet Live Discounts & Food Promo Codes',
+            'url': 'https://www.swiggy.com/gourmet',
             'original_price': 500.0,
             'discount_price': 350.0,
             'discount_percentage': 30.0,
             'category': 'Coupons',
-            'source': 'Grabon'
+            'source': 'Swiggy'
         }
     ]
 
 if __name__ == "__main__":
-    print("Testing Scraper Tier 2...")
+    print("Testing Scraper direct discount links...")
     deals = get_mock_deals()
-    print(f"Loaded {len(deals)} real working product URLs.")
+    print(f"Loaded {len(deals)} direct discount landing page links.")

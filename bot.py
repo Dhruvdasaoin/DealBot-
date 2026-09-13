@@ -20,13 +20,13 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 PREMIUM_CHANNEL_ID = os.getenv("PREMIUM_CHANNEL_ID", CHANNEL_ID)
-RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "")
+RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "https://dealbot-kb4o.onrender.com")
 
 async def format_and_send_deal(context: ContextTypes.DEFAULT_TYPE, deal, target_channel_id=None):
     """Formats the deal and sends it to the channel with tracked click redirect links."""
     channel_id = target_channel_id or CHANNEL_ID
     
-    # Use built-in tracking URL /r/<deal_id> if deal ID is available
+    # Use live tracking URL /r/<deal_id>
     if deal.get('id'):
         buy_url = get_tracking_url(deal['id'], RENDER_EXTERNAL_URL)
     else:
@@ -170,7 +170,7 @@ async def subscribe_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "To activate, click below or run `/subscribetest` to try for free!"
     )
     
-    checkout_url = f"{RENDER_EXTERNAL_URL}/subscribe_pay?user_id={user_id}" if RENDER_EXTERNAL_URL else "https://stripe.com"
+    checkout_url = f"{RENDER_EXTERNAL_URL}/subscribe_pay?user_id={user_id}"
     keyboard = [[InlineKeyboardButton("💳 Subscribe via Stripe / Razorpay ($2/mo)", url=checkout_url)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
