@@ -4,8 +4,13 @@ from datetime import datetime
 
 DB_FILE = "deals.db"
 
+def get_connection():
+    conn = sqlite3.connect(DB_FILE, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    return conn
+
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS deals (
@@ -25,7 +30,7 @@ def init_db():
 
 def insert_deal(title, url, original_price, discount_price, discount_percentage, category, source):
     """Inserts a deal if it hasn't been posted before (based on URL). Returns True if inserted, False if exists."""
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("""
@@ -40,7 +45,7 @@ def insert_deal(title, url, original_price, discount_price, discount_percentage,
     return success
 
 def get_total_deals_this_month():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
     
     # Get current year and month in YYYY-MM format
@@ -54,7 +59,7 @@ def get_total_deals_this_month():
     return count
 
 def get_most_popular_category():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         SELECT category, COUNT(*) as count 
