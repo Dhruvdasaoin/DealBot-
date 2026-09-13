@@ -13,24 +13,20 @@ from database import (
     add_subscriber, 
     is_premium_user
 )
-from affiliate import get_tracking_url
+from affiliate import build_affiliate_link
 
 load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
 PREMIUM_CHANNEL_ID = os.getenv("PREMIUM_CHANNEL_ID", CHANNEL_ID)
-RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "https://dealbot-kb4o.onrender.com")
 
 async def format_and_send_deal(context: ContextTypes.DEFAULT_TYPE, deal, target_channel_id=None):
-    """Formats the deal and sends it to the channel with tracked click redirect links."""
+    """Formats the deal and sends it to the channel with direct clean affiliate links."""
     channel_id = target_channel_id or CHANNEL_ID
     
-    # Use live tracking URL /r/<deal_id>
-    if deal.get('id'):
-        buy_url = get_tracking_url(deal['id'], RENDER_EXTERNAL_URL)
-    else:
-        buy_url = deal['url']
+    # Use direct clean affiliate URL (Amazon, Flipkart, Skyscanner, CoinGecko, Swiggy)
+    buy_url = build_affiliate_link(deal['url'], deal['source']).strip()
         
     message = (
         f"🔥 *{deal['title']}*\n\n"
@@ -43,7 +39,7 @@ async def format_and_send_deal(context: ContextTypes.DEFAULT_TYPE, deal, target_
     
     try:
         await context.bot.send_message(chat_id=channel_id, text=message, parse_mode='Markdown', disable_web_page_preview=False)
-        print(f"Successfully sent deal to {channel_id}: {deal['title']}")
+        print(f"Successfully sent deal to {channel_id}: {deal['title']} -> {buy_url}")
         return True, None
     except Exception as e:
         err_msg = str(e)
@@ -51,7 +47,7 @@ async def format_and_send_deal(context: ContextTypes.DEFAULT_TYPE, deal, target_
         return False, err_msg
 
 async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE, force_post=False):
-    """Job to fetch deals across all categories, save to DB, and post with tracking links."""
+    """Job to fetch deals across all categories, save to DB, and post direct affiliate links."""
     print(f"Running job: fetch_and_post_deals (force={force_post})")
     
     deals = await asyncio.to_thread(get_all_deals)
@@ -59,11 +55,6 @@ async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE, force_post=Fa
     if not deals:
         print("No real deals found, using mock deals across categories.")
         deals = get_mock_deals()
-        if force_post:
-            ts = int(time.time())
-            for d in deals:
-                sep = '&' if '?' in d['url'] else '?'
-                d['url'] = f"{d['url']}{sep}test_ts={ts}"
     
     deals_posted = 0
     max_deals_to_post = 10
@@ -167,14 +158,10 @@ async def subscribe_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🕒 15-minute early access before public channel\n"
         "🎯 Filter alerts by specific price ranges & brands\n"
         "🔒 Exclusive access to Private Deals Channel\n\n"
-        "To activate, click below or run `/subscribetest` to try for free!"
+        "To activate, run `/subscribetest` to try for free!"
     )
     
-    checkout_url = f"{RENDER_EXTERNAL_URL}/subscribe_pay?user_id={user_id}"
-    keyboard = [[InlineKeyboardButton("💳 Subscribe via Stripe / Razorpay ($2/mo)", url=checkout_url)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(msg, reply_markup=reply_markup, parse_mode='Markdown')
+    await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def subscribetest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Test command to instantly grant 30-day Premium tier for testing."""
@@ -192,7 +179,7 @@ async def testpost_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     posted_count, errors = await fetch_and_post_deals(context, force_post=True)
     
     if posted_count > 0:
-        await update.message.reply_text(f"✅ Success! Posted {posted_count} deals with click-tracking links to {target_channel}.")
+        await update.message.reply_text(f"✅ Success! Posted {posted_count} deals with direct clean links to {target_channel}.")
     elif errors:
         await update.message.reply_text(f"❌ Failed to post to channel `{target_channel}`.\n\nError from Telegram: {errors[0]}\n\nPlease verify:\n1. Is your channel username correct in Render environment variables?\n2. Is the bot added as an Administrator in that channel?")
     else:

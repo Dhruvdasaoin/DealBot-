@@ -3,18 +3,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-AMAZON_AFF = os.getenv("AMAZON_AFFILIATE_ID", "")
-FLIPKART_AFF = os.getenv("FLIPKART_AFFILIATE_ID", "")
-IMPACT_AFF = os.getenv("IMPACT_AFFILIATE_ID", "")
-SHAREASALE_AFF = os.getenv("SHAREASALE_AFFILIATE_ID", "")
-BASE_URL = os.getenv("BASE_URL", "")
+AMAZON_AFF = os.getenv("AMAZON_AFFILIATE_ID", "").strip()
+FLIPKART_AFF = os.getenv("FLIPKART_AFFILIATE_ID", "").strip()
+IMPACT_AFF = os.getenv("IMPACT_AFFILIATE_ID", "").strip()
+SHAREASALE_AFF = os.getenv("SHAREASALE_AFFILIATE_ID", "").strip()
 
 def build_affiliate_link(url, source):
-    """Appends affiliate tag based on source ecommerce or network if tag exists"""
+    """Appends affiliate tag directly to product URL and returns clean direct link"""
+    if not url:
+        return "https://www.amazon.in"
+        
     source_lower = source.lower()
     
-    # Strip any test parameters
-    clean_url = url.split('&test_ts=')[0].split('?test_ts=')[0]
+    # Strip any test parameters or trailing newlines/spaces
+    clean_url = str(url).strip().split('&test_ts=')[0].split('?test_ts=')[0]
     
     if 'amazon' in source_lower and AMAZON_AFF and not AMAZON_AFF.startswith('default_'):
         connector = '&' if '?' in clean_url else '?'
@@ -30,9 +32,3 @@ def build_affiliate_link(url, source):
         return f"{clean_url}{connector}u={SHAREASALE_AFF}"
     
     return clean_url
-
-def get_tracking_url(deal_id, base_domain=None):
-    """Generates short redirect URL using live Render domain"""
-    domain = base_domain or os.getenv("RENDER_EXTERNAL_URL") or BASE_URL or "https://dealbot-kb4o.onrender.com"
-    domain = domain.rstrip('/')
-    return f"{domain}/r/{deal_id}"
