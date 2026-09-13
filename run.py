@@ -9,17 +9,14 @@ def run_bot():
     bot_app = create_bot_app()
     if bot_app:
         print("Starting Telegram Bot...")
-        # create a new event loop for this thread
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
-        # Start polling (this is blocking, so it stays in this thread)
-        bot_app.run_polling()
+        # Pass stop_signals=None so it doesn't fail when running in a background thread
+        bot_app.run_polling(stop_signals=None)
     else:
         print("Bot failed to start. Is TELEGRAM_BOT_TOKEN set?")
 
 # Start the bot thread when this module is loaded
-# This ensures it runs whether started via `python run.py` or `gunicorn run:app`
 bot_thread = threading.Thread(target=run_bot, daemon=True)
 bot_thread.start()
 

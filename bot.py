@@ -120,6 +120,6 @@ if __name__ == "__main__":
     bot_app = create_bot_app()
     if bot_app:
         print("Starting DealBot polling...")
-        bot_app.run_polling()
+        bot_app.run_polling(stop_signals=None)
     else:
         print("Failed to start DealBot.")
