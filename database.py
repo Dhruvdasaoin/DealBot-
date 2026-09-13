@@ -6,12 +6,17 @@ DB_FILE = "deals.db"
 
 def get_connection():
     conn = sqlite3.connect(DB_FILE, timeout=30.0)
-    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA busy_timeout = 30000;")
     return conn
 
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL;")
+    except Exception as e:
+        print(f"WAL mode init notice: {e}")
+        
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS deals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
