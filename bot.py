@@ -29,7 +29,7 @@ def add_affiliate_tag(url, source):
     return url
 
 async def format_and_send_deal(context: ContextTypes.DEFAULT_TYPE, deal):
-    """Formats the deal and sends it to the channel"""
+    """Formats the deal and sends it to the channel. Returns (success_bool, error_str)"""
     affiliate_url = add_affiliate_tag(deal['url'], deal['source'])
     
     message = (
@@ -44,21 +44,20 @@ async def format_and_send_deal(context: ContextTypes.DEFAULT_TYPE, deal):
     try:
         await context.bot.send_message(chat_id=CHANNEL_ID, text=message, parse_mode='Markdown', disable_web_page_preview=False)
         print(f"Successfully sent deal to {CHANNEL_ID}: {deal['title']}")
-        return True
+        return True, None
     except Exception as e:
-        print(f"Error sending message to Telegram channel ({CHANNEL_ID}): {e}")
-        return False
+        err_msg = str(e)
+        print(f"Error sending message to Telegram channel ({CHANNEL_ID}): {err_msg}")
+        return False, err_msg
 
 async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE, force_post=False):
-    """Job to fetch deals, save to DB, and post new ones"""
+    """Job to fetch deals, save to DB, and post new ones. Returns summary tuple."""
     print(f"Running job: fetch_and_post_deals (force={force_post})")
     
-    # Run the blocking scraper in a separate thread so it doesn't freeze the asyncio loop or Gunicorn!
     deals = await asyncio.to_thread(get_all_deals)
     
-    # Fallback to mock data if scraping fails entirely (for testing/rate limiting)
     if not deals:
-        print("No real deals found (likely blocked), using mock deals for demonstration.")
+        print("No real deals found, using mock deals.")
         deals = get_mock_deals()
         if force_post:
             ts = int(time.time())
@@ -67,12 +66,12 @@ async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE, force_post=Fa
     
     deals_posted = 0
     max_deals_to_post = 10
+    errors = []
     
     for deal in deals:
         if deals_posted >= max_deals_to_post:
             break
             
-        # Try to insert into DB. If it's a new deal, insert_deal returns True.
         is_new = insert_deal(
             title=deal['title'],
             url=deal['url'],
@@ -84,12 +83,15 @@ async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE, force_post=Fa
         )
         
         if is_new or force_post:
-            success = await format_and_send_deal(context, deal)
+            success, err = await format_and_send_deal(context, deal)
             if success:
                 deals_posted += 1
-                await asyncio.sleep(1) # short pause
-        else:
-            print(f"Skipped duplicate deal: {deal['title']}")
+                await asyncio.sleep(1)
+            else:
+                errors.append(err)
+                break # stop on error to report
+    
+    return deals_posted, errors
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Basic command to check if bot is responsive."""
@@ -97,12 +99,20 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def testpost_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command to manually trigger deal fetching/posting for testing."""
-    await update.message.reply_text("Triggering deal fetch and post...")
-    await fetch_and_post_deals(context, force_post=True)
-    await update.message.reply_text("Finished posting deals. Check the channel!")
+    target_channel = CHANNEL_ID or "NOT SET"
+    await update.message.reply_text(f"Triggering deal fetch... Attempting to post to channel: {target_channel}")
+    
+    posted_count, errors = await fetch_and_post_deals(context, force_post=True)
+    
+    if posted_count > 0:
+        await update.message.reply_text(f"✅ Success! Posted {posted_count} deals to {target_channel}.")
+    elif errors:
+        await update.message.reply_text(f"❌ Failed to post to channel `{target_channel}`.\n\nError from Telegram: {errors[0]}\n\nPlease check:\n1. Is your channel username correct in Render environment variables?\n2. Is the bot added as an Administrator to that channel?")
+    else:
+        await update.message.reply_text(f"Finished processing deals. No new deals to post to {target_channel}.")
 
 def create_bot_app():
-    """Initializes the bot application but doesn't run it (for sharing event loops)"""
+    """Initializes the bot application"""
     init_db()
     
     if not TOKEN:
@@ -114,7 +124,6 @@ def create_bot_app():
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("testpost", testpost_command))
     
-    # Schedule job every 6 hours (first run after 30s to allow server to boot cleanly)
     job_queue = app.job_queue
     job_queue.run_repeating(fetch_and_post_deals, interval=21600, first=30)
     
