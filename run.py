@@ -1,6 +1,7 @@
 import threading
 import asyncio
 import socket
+import time
 import os
 from app import app
 from bot import create_bot_app
@@ -9,21 +10,27 @@ def is_bot_leader():
     """Ensures only ONE Gunicorn worker process starts the bot thread using a socket lock."""
     try:
         lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # Bind to a local port to serve as a process lock
         lock_socket.bind(('127.0.0.1', 14728))
         return lock_socket
     except OSError:
         return None
 
 def run_bot():
-    """Runs the telegram bot in a new event loop inside a thread."""
+    """Runs the telegram bot with auto-retry on temporary deployment conflict errors."""
     bot_app = create_bot_app()
     if bot_app:
         print("Starting Telegram Bot (Leader)...")
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        # Pass stop_signals=None so it doesn't fail in a background thread
-        bot_app.run_polling(stop_signals=None)
+        
+        # Continuous auto-retry loop to handle temporary zero-downtime deploy conflicts cleanly
+        while True:
+            try:
+                bot_app.run_polling(stop_signals=None)
+                break
+            except Exception as e:
+                print(f"Telegram polling notice: {e}. Retrying connection in 10s...")
+                time.sleep(10)
     else:
         print("Bot failed to start. Is TELEGRAM_BOT_TOKEN set?")
 
