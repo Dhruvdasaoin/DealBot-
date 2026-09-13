@@ -1,5 +1,6 @@
 import os
 import asyncio
+import time
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
@@ -42,14 +43,15 @@ async def format_and_send_deal(context: ContextTypes.DEFAULT_TYPE, deal):
     
     try:
         await context.bot.send_message(chat_id=CHANNEL_ID, text=message, parse_mode='Markdown', disable_web_page_preview=False)
+        print(f"Successfully sent deal to {CHANNEL_ID}: {deal['title']}")
         return True
     except Exception as e:
-        print(f"Error sending message to Telegram: {e}")
+        print(f"Error sending message to Telegram channel ({CHANNEL_ID}): {e}")
         return False
 
-async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE):
+async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE, force_post=False):
     """Job to fetch deals, save to DB, and post new ones"""
-    print("Running scheduled job: fetch_and_post_deals")
+    print(f"Running job: fetch_and_post_deals (force={force_post})")
     
     # Try real scraping
     deals = get_all_deals()
@@ -58,8 +60,12 @@ async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE):
     if not deals:
         print("No real deals found (likely blocked), using mock deals for demonstration.")
         deals = get_mock_deals()
+        if force_post:
+            # Append unique query param to bypass duplicate DB check during manual testing
+            ts = int(time.time())
+            for d in deals:
+                d['url'] = f"{d['url']}&test_ts={ts}"
     
-    # We only want to post the top 5-10 deals.
     deals_posted = 0
     max_deals_to_post = 10
     
@@ -78,12 +84,13 @@ async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE):
             source=deal['source']
         )
         
-        if is_new:
-            # Add a slight delay between posts
+        if is_new or force_post:
             success = await format_and_send_deal(context, deal)
             if success:
                 deals_posted += 1
                 await asyncio.sleep(2) # rate limit prevention
+        else:
+            print(f"Skipped duplicate deal: {deal['title']}")
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Basic command to check if bot is responsive."""
@@ -92,8 +99,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def testpost_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command to manually trigger deal fetching/posting for testing."""
     await update.message.reply_text("Triggering deal fetch and post...")
-    await fetch_and_post_deals(context)
-    await update.message.reply_text("Finished posting deals.")
+    await fetch_and_post_deals(context, force_post=True)
+    await update.message.reply_text("Finished posting deals. Check the channel!")
 
 def create_bot_app():
     """Initializes the bot application but doesn't run it (for sharing event loops)"""
@@ -110,13 +117,11 @@ def create_bot_app():
     
     # Schedule job every 6 hours
     job_queue = app.job_queue
-    # 6 hours = 21600 seconds
-    job_queue.run_repeating(fetch_and_post_deals, interval=21600, first=10) # first run after 10s
+    job_queue.run_repeating(fetch_and_post_deals, interval=21600, first=10)
     
     return app
 
 if __name__ == "__main__":
-    # If run standalone, start polling
     bot_app = create_bot_app()
     if bot_app:
         print("Starting DealBot polling...")
