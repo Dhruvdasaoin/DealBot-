@@ -62,7 +62,8 @@ async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE, force_post=Fa
         if force_post:
             ts = int(time.time())
             for d in deals:
-                d['url'] = f"{d['url']}&test_ts={ts}"
+                sep = '&' if '?' in d['url'] else '?'
+                d['url'] = f"{d['url']}{sep}test_ts={ts}"
     
     deals_posted = 0
     max_deals_to_post = 10
@@ -84,7 +85,6 @@ async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE, force_post=Fa
         deal['id'] = deal_id
         
         if deal_id or force_post:
-            # Post to main channel
             success, err = await format_and_send_deal(context, deal)
             if success:
                 deals_posted += 1
@@ -141,7 +141,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         save_user_settings(user_id, user_cats)
         
-        # Rebuild keyboard
         keyboard = []
         for c in all_categories:
             is_selected = c in user_cats
