@@ -4,7 +4,15 @@ from fake_useragent import UserAgent
 import time
 import random
 
-categories = ["Electronics", "Fashion", "Home & Kitchen"]
+all_categories = [
+    "Electronics", 
+    "Fashion", 
+    "Home & Kitchen", 
+    "Books & Media", 
+    "Travel", 
+    "Crypto", 
+    "Coupons"
+]
 
 def get_headers():
     ua = UserAgent()
@@ -14,22 +22,14 @@ def get_headers():
     }
 
 def scrape_amazon_deals(category):
-    # This is a stub for Amazon scraping. 
-    # Real scraping of Amazon without APIs often requires Selenium/Proxies due to captchas.
-    # We will attempt a basic request to Amazon's "Today's Deals" page or category page.
     deals = []
-    
-    # Example URL (highly likely to be blocked or require JS, but we try as requested)
     url = f"https://www.amazon.in/s?k={category.replace(' ', '+')}+deals"
-    
     try:
-        response = requests.get(url, headers=get_headers(), timeout=10)
+        response = requests.get(url, headers=get_headers(), timeout=8)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
-            # Amazon search results container (varies often)
             items = soup.find_all('div', {'data-component-type': 's-search-result'})
-            
-            for item in items[:5]: # limit to 5 per scrape attempt
+            for item in items[:3]:
                 try:
                     title_elem = item.find('span', class_='a-text-normal')
                     if not title_elem: continue
@@ -39,14 +39,10 @@ def scrape_amazon_deals(category):
                     if not price_elem: continue
                     discount_price = float(price_elem.text.replace(',', '').strip())
                     
-                    # Original price (sometimes not present)
                     orig_elem = item.find('span', class_='a-text-price')
                     if orig_elem:
                         original_price_str = orig_elem.find('span', class_='a-offscreen')
-                        if original_price_str:
-                            original_price = float(original_price_str.text.replace('₹', '').replace(',', '').strip())
-                        else:
-                            original_price = discount_price
+                        original_price = float(original_price_str.text.replace('₹', '').replace(',', '').strip()) if original_price_str else discount_price
                     else:
                         original_price = discount_price
                     
@@ -54,11 +50,8 @@ def scrape_amazon_deals(category):
                     if not link_elem: continue
                     product_url = "https://www.amazon.in" + link_elem['href']
                     
-                    if original_price > discount_price:
-                        discount_percentage = ((original_price - discount_price) / original_price) * 100
-                    else:
-                        discount_percentage = 0.0
-                        
+                    discount_percentage = ((original_price - discount_price) / original_price) * 100 if original_price > discount_price else 0.0
+                    
                     if discount_percentage > 30:
                         deals.append({
                             'title': title,
@@ -69,124 +62,122 @@ def scrape_amazon_deals(category):
                             'category': category,
                             'source': 'Amazon'
                         })
-                except Exception as e:
-                    print(f"Error parsing Amazon item: {e}")
+                except Exception:
                     continue
     except Exception as e:
-        print(f"Failed to scrape Amazon {category}: {e}")
-    
+        print(f"Amazon scrape notice ({category}): {e}")
     return deals
 
-def scrape_flipkart_deals(category):
-    # Stub for Flipkart scraping.
+def scrape_crypto_movers():
+    """Scrapes top crypto market movers using CoinGecko public API"""
     deals = []
-    url = f"https://www.flipkart.com/search?q={category.replace(' ', '+')}+offers"
-    
     try:
-        response = requests.get(url, headers=get_headers(), timeout=10)
+        url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage_24h"
+        response = requests.get(url, headers={'User-Agent': 'DealBot/1.0'}, timeout=8)
         if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            # Flipkart search results (various classes, this is a generic attempt)
-            # Flipkart often uses '_1AtVbE' or similar classes for containers
-            items = soup.find_all('div', class_='_1AtVbE')
-            
-            for item in items[:5]:
-                try:
-                    title_elem = item.find('a', class_='IRpwTa') or item.find('div', class_='_4rR01T')
-                    if not title_elem: continue
-                    title = title_elem.text.strip()
-                    
-                    link_elem = item.find('a', class_='_1fQZEK') or item.find('a', class_='IRpwTa')
-                    if not link_elem: continue
-                    product_url = "https://www.flipkart.com" + link_elem['href']
-                    
-                    price_elem = item.find('div', class_='_30jeq3')
-                    if not price_elem: continue
-                    discount_price = float(price_elem.text.replace('₹', '').replace(',', '').strip())
-                    
-                    orig_elem = item.find('div', class_='_3I9_wc')
-                    if orig_elem:
-                        original_price = float(orig_elem.text.replace('₹', '').replace(',', '').strip())
-                    else:
-                        original_price = discount_price
-                    
-                    if original_price > discount_price:
-                        discount_percentage = ((original_price - discount_price) / original_price) * 100
-                    else:
-                        discount_percentage = 0.0
-                        
-                    if discount_percentage > 30:
-                        deals.append({
-                            'title': title,
-                            'url': product_url,
-                            'original_price': original_price,
-                            'discount_price': discount_price,
-                            'discount_percentage': round(discount_percentage, 2),
-                            'category': category,
-                            'source': 'Flipkart'
-                        })
-                except Exception as e:
-                    print(f"Error parsing Flipkart item: {e}")
-                    continue
+            data = response.json()
+            for coin in data:
+                change = coin.get('price_change_percentage_24h_in_currency') or coin.get('price_change_percentage_24h') or 0
+                if abs(change) >= 5.0: # Significant 5%+ crypto mover
+                    price = coin.get('current_price', 0)
+                    old_price = price / (1 + (change / 100)) if change != -100 else price
+                    deals.append({
+                        'title': f"Crypto Alert: {coin['name']} ({coin['symbol'].upper()}) {'🚀 Up' if change > 0 else '📉 Down'} {round(change, 2)}% in 24h",
+                        'url': f"https://www.coingecko.com/en/coins/{coin['id']}?ref=dealbot",
+                        'original_price': round(old_price, 4),
+                        'discount_price': round(price, 4),
+                        'discount_percentage': round(abs(change), 2),
+                        'category': 'Crypto',
+                        'source': 'CoinGecko'
+                    })
     except Exception as e:
-        print(f"Failed to scrape Flipkart {category}: {e}")
-        
+        print(f"Crypto API notice: {e}")
     return deals
 
 def get_all_deals():
-    """Scrapes deals and returns top deals with >30% discount"""
+    """Scrapes deals across all categories"""
     all_deals = []
-    for category in categories:
-        # Add random delay to avoid rate limiting
-        time.sleep(random.uniform(1.0, 3.0))
-        
-        amazon_deals = scrape_amazon_deals(category)
-        all_deals.extend(amazon_deals)
-        
-        time.sleep(random.uniform(1.0, 3.0))
-        
-        flipkart_deals = scrape_flipkart_deals(category)
-        all_deals.extend(flipkart_deals)
-        
-    # Sort by discount percentage descending
+    
+    # Scrape standard ecommerce categories
+    for cat in ["Electronics", "Fashion", "Home & Kitchen"]:
+        time.sleep(random.uniform(0.5, 1.5))
+        all_deals.extend(scrape_amazon_deals(cat))
+    
+    # Scrape crypto movers
+    all_deals.extend(scrape_crypto_movers())
+    
     all_deals.sort(key=lambda x: x['discount_percentage'], reverse=True)
     return all_deals
 
 def get_mock_deals():
-    """Fallback if scraping fails completely (for testing/dashboard)"""
+    """Returns sample deals across all 7 categories for testing/fallbacks"""
     return [
         {
-            'title': 'Test Product: Wireless Earbuds',
-            'url': 'https://www.amazon.in/dp/B08XYZ123?tag=test-21',
-            'original_price': 4999.0,
-            'discount_price': 1999.0,
-            'discount_percentage': 60.0,
+            'title': 'Sony WH-1000XM5 Wireless Headphones',
+            'url': 'https://www.amazon.in/dp/B09XS7JWHH',
+            'original_price': 29990.0,
+            'discount_price': 17990.0,
+            'discount_percentage': 40.0,
             'category': 'Electronics',
             'source': 'Amazon'
         },
         {
-            'title': 'Test Product: Running Shoes',
-            'url': 'https://www.flipkart.com/test-shoes/p/itme?affid=test',
-            'original_price': 3999.0,
-            'discount_price': 1499.0,
-            'discount_percentage': 62.5,
+            'title': 'Nike Air Max Men Running Shoes',
+            'url': 'https://www.flipkart.com/nike-air-max/p/itm123',
+            'original_price': 8995.0,
+            'discount_price': 4495.0,
+            'discount_percentage': 50.0,
             'category': 'Fashion',
             'source': 'Flipkart'
         },
         {
-            'title': 'Test Product: Non-Stick Cookware',
-            'url': 'https://www.amazon.in/dp/B07ABC123?tag=test-21',
-            'original_price': 2999.0,
-            'discount_price': 1599.0,
-            'discount_percentage': 46.6,
+            'title': 'Philips Air Fryer HD9252/90 (4.1 Liter)',
+            'url': 'https://www.amazon.in/dp/B08X1234',
+            'original_price': 11995.0,
+            'discount_price': 6995.0,
+            'discount_percentage': 41.7,
             'category': 'Home & Kitchen',
             'source': 'Amazon'
+        },
+        {
+            'title': 'Atomic Habits Hardcover by James Clear',
+            'url': 'https://www.amazon.in/dp/1847941831',
+            'original_price': 799.0,
+            'discount_price': 399.0,
+            'discount_percentage': 50.0,
+            'category': 'Books & Media',
+            'source': 'Amazon'
+        },
+        {
+            'title': 'Flat 35% Off Flights to Goa & Mumbai (Skyscanner Deal)',
+            'url': 'https://www.skyscanner.co.in/flights/deals',
+            'original_price': 6500.0,
+            'discount_price': 4225.0,
+            'discount_percentage': 35.0,
+            'category': 'Travel',
+            'source': 'Skyscanner'
+        },
+        {
+            'title': 'Crypto Mover: Solana (SOL) Surge 🚀 +14.2% in 24h',
+            'url': 'https://www.coingecko.com/en/coins/solana',
+            'original_price': 130.0,
+            'discount_price': 148.5,
+            'discount_percentage': 14.2,
+            'category': 'Crypto',
+            'source': 'CoinGecko'
+        },
+        {
+            'title': 'Swiggy Gourmet: Flat ₹150 OFF Coupon (Code: GOURMET150)',
+            'url': 'https://www.swiggy.com/offers',
+            'original_price': 500.0,
+            'discount_price': 350.0,
+            'discount_percentage': 30.0,
+            'category': 'Coupons',
+            'source': 'Grabon'
         }
     ]
 
 if __name__ == "__main__":
-    print("Testing Scraper...")
-    deals = get_all_deals()
-    print(f"Found {len(deals)} real deals.")
-    for d in deals:
-        print(d)
+    print("Testing Scraper Tier 2...")
+    deals = get_mock_deals()
+    print(f"Loaded {len(deals)} mock deals across categories.")

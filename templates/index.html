@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DealBot Dashboard</title>
+    <title>DealBot Analytics Dashboard</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -16,24 +16,25 @@
             align-items: center;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
             background: white;
             padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         h1 {
             color: #2c3e50;
             text-align: center;
             border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
+            padding-bottom: 15px;
+            margin-top: 0;
         }
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
-            margin-top: 30px;
+            margin-top: 25px;
         }
         .stat-card {
             background: #f8f9fa;
@@ -45,7 +46,9 @@
         .stat-card h3 {
             margin: 0 0 10px 0;
             color: #6c757d;
-            font-size: 1.1em;
+            font-size: 1em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .stat-card p {
             margin: 0;
@@ -56,27 +59,98 @@
         .status-online {
             color: #27ae60;
         }
+        .table-section {
+            margin-top: 35px;
+        }
+        .table-section h2 {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        th {
+            background-color: #f1f3f5;
+            color: #495057;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            background: #e7f5ff;
+            color: #1971c2;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>DealBot Dashboard</h1>
+        <h1>DealBot Analytics Dashboard</h1>
         
         <div class="stats-grid">
             <div class="stat-card">
-                <h3>Total Deals This Month</h3>
+                <h3>Total Deals Posted</h3>
                 <p>{{ total_deals }}</p>
             </div>
             
             <div class="stat-card">
-                <h3>Most Popular Category</h3>
-                <p>{{ popular_category }}</p>
+                <h3>Total Clicks Tracked</h3>
+                <p>{{ total_clicks }}</p>
             </div>
             
+            <div class="stat-card">
+                <h3>Top Category</h3>
+                <p>{{ popular_category }}</p>
+            </div>
+
             <div class="stat-card">
                 <h3>Bot Status</h3>
                 <p class="status-online">{{ bot_status }}</p>
             </div>
+        </div>
+
+        <div class="table-section">
+            <h2>🔥 Most Clicked Deals This Month</h2>
+            {% if top_deals %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product / Title</th>
+                        <th>Category</th>
+                        <th>Source</th>
+                        <th>Clicks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for deal in top_deals %}
+                    <tr>
+                        <td>{{ deal.title }}</td>
+                        <td><span class="badge">{{ deal.category }}</span></td>
+                        <td>{{ deal.source }}</td>
+                        <td><strong>{{ deal.clicks }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color: #868e96; text-align: center; padding: 20px;">No clicks recorded yet. Share your tracked deal links to see data here!</p>
+            {% endif %}
         </div>
     </div>
 </body>
