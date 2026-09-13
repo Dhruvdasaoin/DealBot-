@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LinkMonitr SaaS | Affiliate Analytics & Link Management</title>
+  <style>
+    :root {
+      --primary: #1e3c72;
+      --secondary: #2a5298;
+      --accent: #27ae60;
+      --bg: #f4f7f6;
+      --text: #333;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+    header p {
+      margin: 8px 0 0 0;
+      opacity: 0.9;
+      font-size: 15px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .card {
+      background: white;
+      padding: 22px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+      text-align: center;
+      border: 1px solid #e9ecef;
+    }
+    .card h3 {
+      margin: 0 0 10px 0;
+      font-size: 13px;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .card .val {
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--primary);
+    }
+    .card .val.money {
+      color: var(--accent);
+    }
+    .create-box {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+      margin-bottom: 35px;
+      border: 1px solid #e9ecef;
+    }
+    .create-box h2 {
+      margin-top: 0;
+      font-size: 18px;
+      color: var(--primary);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 2fr auto;
+      gap: 15px;
+    }
+    input[type="text"], input[type="url"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #219150;
+    }
+    .table-card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+      overflow: hidden;
+      border: 1px solid #e9ecef;
+    }
+    .table-card h2 {
+      padding: 20px 25px;
+      margin: 0;
+      font-size: 18px;
+      color: var(--primary);
+      border-bottom: 1px solid #e9ecef;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 14px 20px;
+      text-align: left;
+      border-bottom: 1px solid #e9ecef;
+    }
+    th {
+      background: #f8f9fa;
+      color: #495057;
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+    .short-link {
+      font-weight: bold;
+      color: #1971c2;
+      text-decoration: none;
+    }
+    .short-link:hover {
+      text-decoration: underline;
+    }
+    .copy-btn {
+      background: #e7f5ff;
+      color: #1971c2;
+      border: 1px solid #a5d8ff;
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .copy-btn:hover {
+      background: #d0ebff;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>💼 LinkMonitr SaaS</h1>
+    <p>Enterprise Affiliate Click Tracker & Monetization Engine</p>
+  </header>
+
+  <div class="container">
+    <div class="stats-grid">
+      <div class="card">
+        <h3>Total Tracked Links</h3>
+        <div class="val">{{ total_links }}</div>
+      </div>
+      <div class="card">
+        <h3>Total Clicks Tracked</h3>
+        <div class="val">{{ total_clicks }}</div>
+      </div>
+      <div class="card">
+        <h3>Est. Revenue Generated</h3>
+        <div class="val money">${{ est_earnings }}</div>
+      </div>
+      <div class="card">
+        <h3>SaaS Engine Status</h3>
+        <div class="val" style="color: #27ae60;">Active</div>
+      </div>
+    </div>
+
+    <div class="create-box">
+      <h2>⚡ Create New Tracked Affiliate Short-Link</h2>
+      <form action="/saas/create" method="POST">
+        <div class="form-row">
+          <input type="text" name="title" placeholder="Campaign / Product Name (e.g. Sony Headphones)" required>
+          <input type="url" name="url" placeholder="Original Target URL (e.g. https://www.amazon.in/dp/...)" required>
+          <button type="submit">Generate Link</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-card">
+      <h2>📊 Active Tracked Links & Analytics</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Campaign Title</th>
+            <th>Shortened Tracked URL</th>
+            <th>Original Destination</th>
+            <th>Total Clicks</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for link in links %}
+          <tr>
+            <td><strong>{{ link.title }}</strong></td>
+            <td>
+              <a href="{{ host_domain }}/s/{{ link.short_code }}" target="_blank" class="short-link">
+                {{ host_domain }}/s/{{ link.short_code }}
+              </a>
+            </td>
+            <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #6c757d;">
+              {{ link.original_url }}
+            </td>
+            <td><strong style="color: var(--primary); font-size: 16px;">{{ link.clicks }}</strong></td>
+            <td>
+              <button class="copy-btn" onclick="copyToClipboard('{{ host_domain }}/s/{{ link.short_code }}')">📋 Copy Link</button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" style="text-align: center; color: #868e96; padding: 30px;">
+              No tracked links created yet. Use the form above to generate your first link!
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Copied to clipboard: " + text);
+      });
+    }
+  </script>
+</body>
+</html>
