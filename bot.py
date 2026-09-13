@@ -53,15 +53,14 @@ async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE, force_post=Fa
     """Job to fetch deals, save to DB, and post new ones"""
     print(f"Running job: fetch_and_post_deals (force={force_post})")
     
-    # Try real scraping
-    deals = get_all_deals()
+    # Run the blocking scraper in a separate thread so it doesn't freeze the asyncio loop or Gunicorn!
+    deals = await asyncio.to_thread(get_all_deals)
     
-    # Fallback to mock data if scraping fails entirely (for testing)
+    # Fallback to mock data if scraping fails entirely (for testing/rate limiting)
     if not deals:
         print("No real deals found (likely blocked), using mock deals for demonstration.")
         deals = get_mock_deals()
         if force_post:
-            # Append unique query param to bypass duplicate DB check during manual testing
             ts = int(time.time())
             for d in deals:
                 d['url'] = f"{d['url']}&test_ts={ts}"
@@ -88,7 +87,7 @@ async def fetch_and_post_deals(context: ContextTypes.DEFAULT_TYPE, force_post=Fa
             success = await format_and_send_deal(context, deal)
             if success:
                 deals_posted += 1
-                await asyncio.sleep(2) # rate limit prevention
+                await asyncio.sleep(1) # short pause
         else:
             print(f"Skipped duplicate deal: {deal['title']}")
 
@@ -115,9 +114,9 @@ def create_bot_app():
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("testpost", testpost_command))
     
-    # Schedule job every 6 hours
+    # Schedule job every 6 hours (first run after 30s to allow server to boot cleanly)
     job_queue = app.job_queue
-    job_queue.run_repeating(fetch_and_post_deals, interval=21600, first=10)
+    job_queue.run_repeating(fetch_and_post_deals, interval=21600, first=30)
     
     return app
 
