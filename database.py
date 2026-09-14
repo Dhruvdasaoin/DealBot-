@@ -60,11 +60,89 @@ def init_db():
         )
     """)
     
+    # NO-CODE BOTBUILDER SAAS TABLE
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_bots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bot_name TEXT NOT NULL,
+            bot_token TEXT NOT NULL,
+            channel_id TEXT NOT NULL,
+            source_type TEXT DEFAULT 'E-commerce Deals',
+            interval_hours INTEGER DEFAULT 6,
+            status TEXT DEFAULT 'active',
+            last_run_at TIMESTAMP,
+            created_at TIMESTAMP
+        )
+    """)
+    
     conn.commit()
     conn.close()
 
+# --- NO-CODE BOTBUILDER HELPERS ---
+
+def create_user_bot(bot_name, bot_token, channel_id, source_type="E-commerce Deals", interval_hours=6):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO user_bots (bot_name, bot_token, channel_id, source_type, interval_hours, status, created_at)
+        VALUES (?, ?, ?, ?, ?, 'active', ?)
+    """, (bot_name, bot_token, channel_id, source_type, interval_hours, datetime.now()))
+    conn.commit()
+    bot_id = cursor.lastrowid
+    conn.close()
+    return bot_id
+
+def get_all_user_bots():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, bot_name, bot_token, channel_id, source_type, interval_hours, status, last_run_at, created_at
+        FROM user_bots ORDER BY id DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [
+        {
+            'id': r[0],
+            'bot_name': r[1],
+            'bot_token': r[2],
+            'channel_id': r[3],
+            'source_type': r[4],
+            'interval_hours': r[5],
+            'status': r[6],
+            'last_run_at': r[7],
+            'created_at': r[8]
+        } for r in rows
+    ]
+
+def toggle_user_bot_status(bot_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT status FROM user_bots WHERE id = ?", (bot_id,))
+    row = cursor.fetchone()
+    if row:
+        new_status = 'paused' if row[0] == 'active' else 'active'
+        cursor.execute("UPDATE user_bots SET status = ? WHERE id = ?", (new_status, bot_id))
+        conn.commit()
+    conn.close()
+
+def delete_user_bot(bot_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM user_bots WHERE id = ?", (bot_id,))
+    conn.commit()
+    conn.close()
+
+def update_bot_last_run(bot_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE user_bots SET last_run_at = ? WHERE id = ?", (datetime.now(), bot_id))
+    conn.commit()
+    conn.close()
+
+# --- EXISTING HELPERS ---
+
 def insert_deal(title, url, original_price, discount_price, discount_percentage, category, source):
-    """Inserts a deal if it hasn't been posted before (based on URL). Returns deal ID or None."""
     conn = get_connection()
     cursor = conn.cursor()
     deal_id = None
@@ -76,7 +154,6 @@ def insert_deal(title, url, original_price, discount_price, discount_percentage,
         conn.commit()
         deal_id = cursor.lastrowid
     except sqlite3.IntegrityError:
-        # Fetch existing deal ID if already present
         cursor.execute("SELECT id FROM deals WHERE url = ?", (url,))
         row = cursor.fetchone()
         if row:
@@ -149,7 +226,6 @@ def get_user_settings(user_id):
     conn.close()
     if row and row[0]:
         return json.loads(row[0])
-    # Default to all categories
     return ["Electronics", "Fashion", "Home & Kitchen", "Books & Media", "Travel", "Crypto", "Coupons"]
 
 def add_subscriber(user_id, username, days=30):
@@ -206,4 +282,4 @@ def get_most_popular_category():
 
 if __name__ == "__main__":
     init_db()
-    print("Database initialized for Tier 2.")
+    print("Database initialized for BotBuilder SaaS.")

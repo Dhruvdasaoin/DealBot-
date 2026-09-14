@@ -7,9 +7,14 @@ from database import (
     get_total_clicks_this_month, 
     get_top_clicked_deals,
     add_subscriber,
-    get_connection
+    get_connection,
+    create_user_bot,
+    get_all_user_bots,
+    toggle_user_bot_status,
+    delete_user_bot
 )
 from affiliate import build_affiliate_link
+from botbuilder_engine import run_single_user_bot
 import os
 import string
 import random
@@ -45,7 +50,6 @@ def saas_portal():
     conn = get_connection()
     cursor = conn.cursor()
     
-    # Create saas_links table if not exists
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS saas_links (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,7 +67,7 @@ def saas_portal():
     
     total_saas_links = len(rows)
     total_saas_clicks = sum(r[4] for r in rows) if rows else 0
-    est_earnings = round(total_saas_clicks * 0.12, 2) # Estimated $0.12 per click
+    est_earnings = round(total_saas_clicks * 0.12, 2)
     
     links = [
         {
@@ -77,7 +81,6 @@ def saas_portal():
     ]
     
     conn.close()
-    
     host_domain = request.host_url.rstrip('/')
     
     return render_template(
@@ -91,7 +94,6 @@ def saas_portal():
 
 @app.route('/saas/create', methods=['POST'])
 def saas_create():
-    """API & Form Endpoint to generate a tracked short-link in SaaS"""
     original_url = request.form.get('url', '').strip()
     title = request.form.get('title', '').strip() or original_url
     
@@ -112,7 +114,6 @@ def saas_create():
 
 @app.route('/s/<short_code>')
 def saas_redirect(short_code):
-    """SaaS Redirect Endpoint: logs click and redirects user to target URL"""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, original_url, clicks FROM saas_links WHERE short_code = ?", (short_code,))
@@ -120,7 +121,6 @@ def saas_redirect(short_code):
     
     if row:
         link_id, original_url, current_clicks = row[0], row[1], row[2]
-        # Increment click count
         cursor.execute("UPDATE saas_links SET clicks = clicks + 1 WHERE id = ?", (link_id,))
         conn.commit()
         conn.close()
@@ -129,9 +129,62 @@ def saas_redirect(short_code):
     conn.close()
     return redirect('/saas')
 
+# --- BOTBUILDER NO-CODE SAAS ROUTES ---
+
+@app.route('/botbuilder')
+def botbuilder_portal():
+    """BotBuilder No-Code SaaS Web Portal"""
+    bots = get_all_user_bots()
+    total_bots = len(bots)
+    active_bots = sum(1 for b in bots if b['status'] == 'active')
+    total_mrr = active_bots * 19 # $19/mo per active bot
+    
+    return render_template(
+        'botbuilder.html',
+        bots=bots,
+        total_bots=total_bots,
+        active_bots=active_bots,
+        total_mrr=total_mrr
+    )
+
+@app.route('/botbuilder/create', methods=['POST'])
+def botbuilder_create():
+    bot_name = request.form.get('bot_name', '').strip()
+    bot_token = request.form.get('bot_token', '').strip()
+    channel_id = request.form.get('channel_id', '').strip()
+    source_type = request.form.get('source_type', 'E-commerce Deals').strip()
+    interval_hours = int(request.form.get('interval_hours', 6))
+    
+    if bot_name and bot_token and channel_id:
+        create_user_bot(bot_name, bot_token, channel_id, source_type, interval_hours)
+        
+    return redirect('/botbuilder')
+
+@app.route('/botbuilder/toggle/<int:bot_id>')
+def botbuilder_toggle(bot_id):
+    toggle_user_bot_status(bot_id)
+    return redirect('/botbuilder')
+
+@app.route('/botbuilder/delete/<int:bot_id>')
+def botbuilder_delete(bot_id):
+    delete_user_bot(bot_id)
+    return redirect('/botbuilder')
+
+@app.route('/botbuilder/test/<int:bot_id>')
+def botbuilder_test(bot_id):
+    bots = get_all_user_bots()
+    target_bot = next((b for b in bots if b['id'] == bot_id), None)
+    if target_bot:
+        try:
+            run_single_user_bot(target_bot)
+        except Exception as e:
+            print(f"Manual test run error for bot {bot_id}: {e}")
+    return redirect('/botbuilder')
+
+# --- EXISTING ROUTES ---
+
 @app.route('/r/<int:deal_id>')
 def redirect_deal(deal_id):
-    """DealBot Click tracking endpoint"""
     deal = get_deal_by_id(deal_id)
     if deal:
         register_click(deal_id)
