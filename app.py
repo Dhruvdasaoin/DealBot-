@@ -11,16 +11,29 @@ from database import (
     create_user_bot,
     get_all_user_bots,
     toggle_user_bot_status,
-    delete_user_bot
+    delete_user_bot,
+    init_db
 )
 from affiliate import build_affiliate_link
-from botbuilder_engine import run_single_user_bot
 import os
 import string
 import random
 from datetime import datetime
 
+# Safe import of botbuilder engine
+try:
+    from botbuilder_engine import run_single_user_bot
+except ImportError:
+    def run_single_user_bot(bot):
+        print(f"Fallback engine notice: {bot}")
+
 app = Flask(__name__)
+
+# Ensure DB is initialized on app startup
+try:
+    init_db()
+except Exception as e:
+    print(f"Startup DB init notice: {e}")
 
 def generate_short_code(length=6):
     chars = string.ascii_letters + string.digits
@@ -46,70 +59,46 @@ def dashboard():
 
 @app.route('/saas')
 def saas_portal():
-    """Live LinkMonitr Micro-SaaS Portal for creating and tracking affiliate links"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS saas_links (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            short_code TEXT UNIQUE NOT NULL,
-            original_url TEXT NOT NULL,
-            title TEXT,
-            clicks INTEGER DEFAULT 0,
-            created_at TIMESTAMP
-        )
-    """)
-    conn.commit()
-    
-    cursor.execute("SELECT id, short_code, original_url, title, clicks, created_at FROM saas_links ORDER BY id DESC")
-    rows = cursor.fetchall()
-    
-    total_saas_links = len(rows)
-    total_saas_clicks = sum(r[4] for r in rows) if rows else 0
-    est_earnings = round(total_saas_clicks * 0.12, 2)
-    
-    links = [
-        {
-            'id': r[0],
-            'short_code': r[1],
-            'original_url': r[2],
-            'title': r[3],
-            'clicks': r[4],
-            'created_at': r[5]
-        } for r in rows
-    ]
-    
-    conn.close()
-    host_domain = request.host_url.rstrip('/')
-    
-    return render_template(
-        'saas.html',
-        links=links,
-        total_links=total_saas_links,
-        total_clicks=total_saas_clicks,
-        est_earnings=est_earnings,
-        host_domain=host_domain
-    )
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS saas_links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                short_code TEXT UNIQUE NOT NULL,
+                original_url TEXT NOT NULL,
+                title TEXT,
+                clicks INTEGER DEFAULT 0,
+                created_at TIMESTAMP
+            )
+        """)
+        conn.commit()
+        cursor.execute("SELECT id, short_code, original_url, title, clicks, created_at FROM saas_links ORDER BY id DESC")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        links = [{'id': r[0], 'short_code': r[1], 'original_url': r[2], 'title': r[3], 'clicks': r[4], 'created_at': r[5]} for r in rows]
+        total_saas_links = len(rows)
+        total_saas_clicks = sum(r[4] for r in rows) if rows else 0
+        est_earnings = round(total_saas_clicks * 0.12, 2)
+        host_domain = request.host_url.rstrip('/')
+        
+        return render_template('saas.html', links=links, total_links=total_saas_links, total_clicks=total_saas_clicks, est_earnings=est_earnings, host_domain=host_domain)
+    except Exception as e:
+        return f"SaaS Portal Error: {e}", 200
 
 @app.route('/saas/create', methods=['POST'])
 def saas_create():
     original_url = request.form.get('url', '').strip()
     title = request.form.get('title', '').strip() or original_url
-    
-    if not original_url:
-        return redirect('/saas')
-        
-    short_code = generate_short_code()
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO saas_links (short_code, original_url, title, clicks, created_at)
-        VALUES (?, ?, ?, 0, ?)
-    """, (short_code, original_url, title, datetime.now()))
-    conn.commit()
-    conn.close()
-    
+    if original_url:
+        short_code = generate_short_code()
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO saas_links (short_code, original_url, title, clicks, created_at) VALUES (?, ?, ?, 0, ?)",
+                       (short_code, original_url, title, datetime.now()))
+        conn.commit()
+        conn.close()
     return redirect('/saas')
 
 @app.route('/s/<short_code>')
@@ -118,14 +107,12 @@ def saas_redirect(short_code):
     cursor = conn.cursor()
     cursor.execute("SELECT id, original_url, clicks FROM saas_links WHERE short_code = ?", (short_code,))
     row = cursor.fetchone()
-    
     if row:
         link_id, original_url, current_clicks = row[0], row[1], row[2]
         cursor.execute("UPDATE saas_links SET clicks = clicks + 1 WHERE id = ?", (link_id,))
         conn.commit()
         conn.close()
         return redirect(original_url, code=302)
-    
     conn.close()
     return redirect('/saas')
 
@@ -133,19 +120,24 @@ def saas_redirect(short_code):
 
 @app.route('/botbuilder')
 def botbuilder_portal():
-    """BotBuilder No-Code SaaS Web Portal"""
-    bots = get_all_user_bots()
-    total_bots = len(bots)
-    active_bots = sum(1 for b in bots if b['status'] == 'active')
-    total_mrr = active_bots * 19 # $19/mo per active bot
-    
-    return render_template(
-        'botbuilder.html',
-        bots=bots,
-        total_bots=total_bots,
-        active_bots=active_bots,
-        total_mrr=total_mrr
-    )
+    """BotBuilder No-Code SaaS Web Portal with error-handling wrapper"""
+    try:
+        bots = get_all_user_bots()
+        total_bots = len(bots)
+        active_bots = sum(1 for b in bots if b['status'] == 'active')
+        total_mrr = active_bots * 19
+        
+        return render_template(
+            'botbuilder.html',
+            bots=bots,
+            total_bots=total_bots,
+            active_bots=active_bots,
+            total_mrr=total_mrr
+        )
+    except Exception as e:
+        err_type = type(e).__name__
+        err_msg = str(e)
+        return f"<h3>BotBuilder SaaS Loading Notice</h3><p><strong>Error Details:</strong> {err_type}: {err_msg}</p><p>Please ensure <code>botbuilder.html</code> is uploaded to the <code>templates/</code> directory on GitHub.</p>", 200
 
 @app.route('/botbuilder/create', methods=['POST'])
 def botbuilder_create():
@@ -172,13 +164,13 @@ def botbuilder_delete(bot_id):
 
 @app.route('/botbuilder/test/<int:bot_id>')
 def botbuilder_test(bot_id):
-    bots = get_all_user_bots()
-    target_bot = next((b for b in bots if b['id'] == bot_id), None)
-    if target_bot:
-        try:
+    try:
+        bots = get_all_user_bots()
+        target_bot = next((b for b in bots if b['id'] == bot_id), None)
+        if target_bot:
             run_single_user_bot(target_bot)
-        except Exception as e:
-            print(f"Manual test run error for bot {bot_id}: {e}")
+    except Exception as e:
+        print(f"Manual test run error for bot {bot_id}: {e}")
     return redirect('/botbuilder')
 
 # --- EXISTING ROUTES ---
