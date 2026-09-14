@@ -60,7 +60,6 @@ def init_db():
         )
     """)
     
-    # NO-CODE BOTBUILDER SAAS TABLE
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_bots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,6 +80,7 @@ def init_db():
 # --- NO-CODE BOTBUILDER HELPERS ---
 
 def create_user_bot(bot_name, bot_token, channel_id, source_type="E-commerce Deals", interval_hours=6):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -93,6 +93,7 @@ def create_user_bot(bot_name, bot_token, channel_id, source_type="E-commerce Dea
     return bot_id
 
 def get_all_user_bots():
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -116,6 +117,7 @@ def get_all_user_bots():
     ]
 
 def toggle_user_bot_status(bot_id):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT status FROM user_bots WHERE id = ?", (bot_id,))
@@ -127,6 +129,7 @@ def toggle_user_bot_status(bot_id):
     conn.close()
 
 def delete_user_bot(bot_id):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM user_bots WHERE id = ?", (bot_id,))
@@ -134,6 +137,7 @@ def delete_user_bot(bot_id):
     conn.close()
 
 def update_bot_last_run(bot_id):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("UPDATE user_bots SET last_run_at = ? WHERE id = ?", (datetime.now(), bot_id))
@@ -143,6 +147,7 @@ def update_bot_last_run(bot_id):
 # --- EXISTING HELPERS ---
 
 def insert_deal(title, url, original_price, discount_price, discount_percentage, category, source):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     deal_id = None
@@ -162,6 +167,7 @@ def insert_deal(title, url, original_price, discount_price, discount_percentage,
     return deal_id
 
 def get_deal_by_id(deal_id):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, title, url, source, category FROM deals WHERE id = ?", (deal_id,))
@@ -172,6 +178,7 @@ def get_deal_by_id(deal_id):
     return None
 
 def register_click(deal_id, user_id=None):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -181,6 +188,7 @@ def register_click(deal_id, user_id=None):
     conn.close()
 
 def get_total_clicks_this_month():
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     current_month_prefix = datetime.now().strftime('%Y-%m')
@@ -192,6 +200,7 @@ def get_total_clicks_this_month():
     return count
 
 def get_top_clicked_deals(limit=5):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -207,6 +216,7 @@ def get_top_clicked_deals(limit=5):
     return [{'title': r[0], 'category': r[1], 'source': r[2], 'clicks': r[3]} for r in rows]
 
 def save_user_settings(user_id, categories_list):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     categories_json = json.dumps(categories_list)
@@ -219,6 +229,7 @@ def save_user_settings(user_id, categories_list):
     conn.close()
 
 def get_user_settings(user_id):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT categories_json FROM user_settings WHERE user_id = ?", (user_id,))
@@ -229,6 +240,7 @@ def get_user_settings(user_id):
     return ["Electronics", "Fashion", "Home & Kitchen", "Books & Media", "Travel", "Crypto", "Coupons"]
 
 def add_subscriber(user_id, username, days=30):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     now = datetime.now()
@@ -242,6 +254,7 @@ def add_subscriber(user_id, username, days=30):
     conn.close()
 
 def is_premium_user(user_id):
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -256,6 +269,7 @@ def is_premium_user(user_id):
     return False
 
 def get_total_deals_this_month():
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     current_month_prefix = datetime.now().strftime('%Y-%m')
@@ -267,6 +281,7 @@ def get_total_deals_this_month():
     return count
 
 def get_most_popular_category():
+    init_db()
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
